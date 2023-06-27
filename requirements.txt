@@ -1,4 +1,4 @@
-ipython==8.5.0
+ipython==8.10.0
 ipykernel==6.15.2
 jupyter==1.0.0
 jupyterlab==3.4.6
