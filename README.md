@@ -6,3 +6,5 @@
 
 * [Lecture 1](lecture_notebooks/lecture_1.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_1.ipynb)
    - Logistics, introduction, course goals, review of some numerical methods
+* [Lecture 2](lecture_notebooks/lecture_2.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_2.ipynb)
+   - Introduction to finite element method, 1D Poisson problem
