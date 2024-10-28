@@ -1,0 +1,337 @@
+\documentclass{lecture}
+
+\begin{document}
+
+\lectitle{6}
+
+As mentioned in previous lectures, the stiffness matrix for finite element discretizations is very sparse: the number of nonzeros per row is equal to the \textbf{valence} of the associated vertex, and is generally bounded (i.e.\ $\mathcal{O}(1)$, independent of the mesh size $h$).
+Consequently, the number of nonzeros in the matrix scales like $\mathcal{O}(n)$, where $n$ is the total number of unknowns (i.e.\ $A \in \mathbb{R}^{n \times n}$).
+However, a ``dense'' matrix requires $n^2$ storage.
+Furthermore, computing matrix-vector products and performing other linear algebra operations with dense matrices requires many options.
+As an example, how many operations are required to compute the matrix-vector product $A \bm v$, where $A \in \mathbb{R}^{n \times n}$, and $\bm v \in \mathbb{R}^n$?
+Let's first write down the algorithm in ``pseudocode'':
+
+\begin{algorithm}[H]
+   \caption{Dense matrix-vector product ($m \times n$ matrix)}
+   \begin{algorithmic}[1]
+      \For {$i = 1, 2, \ldots, m$}
+         \State Set $w_i \gets 0$
+         \For {$j = 1, 2, \ldots, n$}
+            \State Set $w_i \gets w_i + A_{ij} v_j$
+         \EndFor
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+(For an $n \times n$ matrix, set $m = n$ in the above algorithm).
+We see that this algorithm requires $2 n^2$ operations: $n^2$ additions and $n^2$ multiplications (and $n$ operations to zero out $w_i$, so depending how we count we could also say $2n^2 + n$).
+This can be seen by noting that the inner loop has $2 n$ operations, and it is repeated $n$ times, so there is a total of
+\[
+   n \times (2n) = 2n^2 \ \text{operations.}
+\]
+We require storing $n^2 + 2n$ numbers for this algorithm: $n^2$ for the matrix, and $n$ for each vector ($\bm v$ and $\bm w$).
+In big $O$ notation, we would write that this algorithm has $\mathcal{O}(n^2)$ computational complexity (operation count) and $\mathcal{O}(n^2)$ memory complexity.
+This is because the number of operations and memory required is \textbf{bounded by} a constant times $n^2$ for all sufficiently large $n$.
+
+
+Let's now consider matrix-matrix multiplication.
+Let $A$ and $B$ both be $n \times n$ matrices, and set $C = A B$.
+We know that the entries of $C$ are given by
+\[
+   C_{ij} = \sum_{k=1}^n A_{ik} B_{kj}.
+\]
+Let's write this down as a simple algorithm in pseudocode.
+
+\begin{algorithm}[H]
+   \caption{Dense matrix-matrix product (triply nested loop)}
+   \begin{algorithmic}[1]
+      \For {$i = 1, 2, \ldots, n$}
+         \For {$j = 1, 2, \ldots, n$}
+            \State Set $C_{ij} \gets 0$
+            \For {$k = 1, 2, \ldots, n$}
+               \State Set $C_{ij} \gets C_{ij} + A_{ik} B_{kj}$
+            \EndFor
+         \EndFor
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+This is the simplest (often called ``naive'') algorithm for computing matrix-matrix products.
+It is often called the ``triply nested loop'' algorithm, since there are three nested for-loops.
+What is the computational complexity and memory complexity of this algorithm?
+It requires $3 n^2$ memory, to store each of the three matrices, $A$, $B$, and $C$.
+The number of operations scales like $2n^3$. (Why?)
+
+\subsection*{Sparsity}
+
+We are interested in ``large-scale applications'', which means that we may be dealing with very large matrices.
+In other words, $n$ may be very large (millions or billions), and the $\mathcal{O}(n^2)$ memory and $\mathcal{O}(n^3)$ operations may be too large.
+So it is critical that we find ways to perform these calculations efficiently on big data.
+
+One of the main ways we will address this problem is by using \textbf{sparsity}.
+We talk about matrices being \textbf{sparse} when many of their entries are \textbf{zero}.
+The opposite of a sparse matrix is a \textbf{dense matrix}.
+Consider an $m \times n$ matrix $A$.
+Let $\nnz(A)$ denote the \textbf{number of nonzero entries} of the matrix $A$.
+We are interested in matrices with $\nnz(A) \ll mn$.
+
+For example, consider the $4 \times 4$ matrix $A$
+\[
+   A = \begin{pmatrix}
+      1 & 0 & 0 & 1 \\
+      2 & 0 & 1 & 0 \\
+      0 & 0 & 0 & 0 \\
+      1 & 0 & 0 & -1
+   \end{pmatrix}.
+\]
+The usual way of storing this as a ``dense matrix'' would be to store all 16 entries (e.g.\ as an array-of-arrays or as a two-dimensional array).
+On the other hand, we can also just list the nonzero entries,
+\begin{align*}
+   A_{11} &= 1, \\
+   A_{14} &= 1, \\
+   A_{21} &= 2, \\
+   A_{23} &= 1, \\
+   A_{41} &= 1, \\
+   A_{44} &= -1.
+\end{align*}
+We can store these as three arrays, in so-called ``\textbf{coordinate format}'' (abbreviated as COO format):
+\begin{center}
+   \begin{tabular}{ccc}
+      \multicolumn{3}{c}{COO}\\
+      $I$ & $J$ & $V$\\
+      \hline
+      0&0&1\\
+      0&3&1\\
+      1&0&2\\
+      1&2&1\\
+      3&0&1\\
+      3&3&-1
+   \end{tabular}
+\end{center}
+The first column gives the row index, the second column the column index, and the third column the value of the entry.
+(\textbf{Note:} here we are using 0-based indexing, just as in Python. It is important to be aware of this difference and to be able to fluently go back and forth between these conventions.)
+The first two columns are integers, and the third column is a floating point number.
+These are often denoted by arrays $I$, $J$, and $V$ (for the \textit{values}).
+The storage in this format is $3 \times \nnz(A)$.
+So, as long as $\nnz(A) < 3 \times m n$, then this format requires less storage than the dense format.
+(In this example, there isn't a big payoff to using the sparse format, but this will clearly change for very large matrix sizes).
+
+Can we use this format not just to \textbf{store} matrices, but also to perform computations?
+Consider the following algorithm to compute a matrix-vector product $w = A v$ with coordinate format:
+
+\begin{algorithm}[H]
+   \caption{Matrix-vector product in COO format}
+   \begin{algorithmic}[1]
+      \For {$i = 0, 1, \ldots, m - 1$}
+         \State $w_i \gets 0$
+      \EndFor
+      \For {$k = 0, 1, \ldots, \nnz(A) - 1$}
+         \State $i \gets I[k]$
+         \State $j \gets J[k]$
+         \State $w_i \gets w_i + V[k] v_j$
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+What is the computational complexity of this algorithm?
+There are $\nnz(A)$ additions and multiplications each (and $n$ initializations).
+So, this algorithm is much more efficient that the previous one whenever the matrix is very sparse (i.e.\ very few nonzeros compared with the dimensions of the matrix).
+
+\subsection*{Compressed Sparse Row Format}
+
+The ``coordinate (COO) format'' is very convenient and intuitive for specifying sparse matrices (just list the nonzero entries and their coordinates), but (for a number of reasons) it not always the most computationally advantageous.
+Another popular format is \textbf{compressed sparse row (CSR)} format.
+(Note: there is also compressed sparse column format, which is the ``transposed'' version of CSR).
+Similar to COO format, CSR format uses three arrays: $I$, $J$ and $V$, where $I$ and $J$ contain integers, and $V$ contains floating point numbers.
+However, the interpretation of these arrays is \textbf{different} in CSR format.
+
+Recall our matrix $A$ specified in COO format:
+
+\begin{center}
+   \begin{tabular}{ccc}
+      \multicolumn{3}{c}{COO}\\
+      $I$ & $J$ & $V$\\
+      \hline
+      0&0&1\\
+      0&3&1\\
+      1&0&2\\
+      1&2&1\\
+      3&0&1\\
+      3&3&-1
+   \end{tabular}
+\end{center}
+
+Notice that the value in the $I$ column is repeated for every entry in each row.
+If we had a large matrix with 100 entries in the 5th row, then the $I$ array would contain the number `5' repeated 100 times.
+Clearly, this data could be \textbf{compressed} by avoiding this repetition.
+The way we perform this compression is by changing the meaning of the $I$ array: instead of an array of indices, the CSR $I$ array represents a ``\textbf{row pointer}''.
+In CSR, $I$ is an array of length $m + 1$ (where $m$ the number of rows in the matrix).
+For row index $i$, the entries of the row are contained in the interval
+\[
+   [ I[i], I[i+1] ),
+\]
+i.e.~all indices starting from $I[i]$ and up to (\textit{but not including}) $I[i+1]$.
+If row $i$ is \textit{empty} (no nonzeros in this row), then $I[i] = I[i+1]$, and the interval is empty (no indices satisfy the condition).
+The number of nonzeros in row $i$ is equal to $I[i+1] - I[i]$.
+Note that the last entry of $I[i]$ is equal to $\nnz(A)$.
+
+\begin{center}
+   \begin{tabular}{rccc}
+      & \small index & $J$ & $V$\\
+      \cline{2-4}
+      \raisebox{0.5\height}{start of row 1 $\rightarrow$} &\small0&0&1\\
+       &\small1&3&1\\
+       \raisebox{0.5\height}{start of row 2 $\rightarrow$} &\small2&0&2\\
+       \raisebox{-0.5\height}{start of row 3 $\rightarrow$} &\small3&2&1\\
+      \raisebox{0.5\height}{start of row 4 $\rightarrow$} &\small4&0&1\\
+      \raisebox{-0.5\height}{end of row 4/$\nnz(A)$ $\rightarrow$}&\small5&3&-1\\
+      &\small6&---&---
+   \end{tabular}
+\end{center}
+
+Every location indicated by a right arrow ($\rightarrow$) is stored in the ``row pointer array'' $I$,
+\[
+   I = [0, 2, 4, 4, 6].
+\]
+In this case, we have ``compressed'' the $I$ array from 6 entries to 5.
+In general, the storage estimates are as follows
+\[
+   \text{COO memory} = 3 \nnz(A), \qquad
+   \text{CSR memory} = 2 \nnz(A) + m + 1,
+\]
+and so CSR will have a memory savings of $\nnz(A) - m - 1$.
+If the average number of nonzeros per row is more than one, this can add up to significant savings.
+CSR format gives easy access to the rows of the matrix.
+As mentioned above, the number of nonzeros in row $i$ is equal to $I[i+1] - I[i]$.
+
+We can modify the previous algorithm to compute matrix-vector products with a matrix in CSR format.
+
+\begin{algorithm}[H]
+   \caption{Matrix-vector product in CSR format}
+   \begin{algorithmic}[1]
+      \For {$i = 0, 1, \ldots, m - 1$}
+         \State $w_i \gets 0$
+         \State $\textsf{begin}_j \gets I[i]$
+         \State $\textsf{end}_j \gets I[i+1]$
+         \For {$\textsf{idx}_j = \textsf{begin}_j, \textsf{begin}_j + 1, \ldots, \textsf{end}_j - 1$}
+            \State $j \gets J[\textsf{idx}_j]$
+            \State $w_i \gets w_i + V[\textsf{idx}_j] v_j$
+         \EndFor
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+We can see that matrix-vector products are straightforward to compute using CSR format.
+This is good because matrix-vector products are a critical operation in finite element algorithms.
+
+However, we may also want to compute matrix-matrix products, $C = AB$, where $A$ and $B$ are both sparse.
+In that case, $C$ is also sparse, but its sparsity pattern will be different from that of $A$ and $B$.
+
+Recall that for $C = AB$, the entries of $C$ are given by
+\[
+   C_{ij} = \sum_k A_{ik} B_{kj}.
+\]
+If $A_{ik}$ and $B_{kj}$ are both nonzero for any index $k$, then $C_{ij}$ is (potentially) nonzero as well.
+We say ``potentially'' here because in general there could be cancellation that leads to a zero entry.
+Let's develop an algorithm that predicts the sparsity of $C$ given $A$ and $B$.
+
+For each row $i$ of $A$, we consider all columns $k$ such that $A_{ik}$ is nonzero.
+This information is easily available in CSR format.
+Then, for row $k$ of $B$, we consider all columns $j$ such that $B_{kj}$ is nonzero.
+For each such column, the entry $(i,j)$ will be in the CSR format of the product $C$.
+
+Suppose that $A$ is of size $\ell \times m$ and that $B$ is of size $m \times n$.
+Then, $C$ is of size $\ell \times n$.
+
+The $I_C$ array is of length $\ell + 1$ (where $\ell$ is the number of rows of $C$).
+This is known in advance and can be allocated.
+The $J_C$ array is of length $\nnz(C)$.
+We don't know $\nnz(C)$ \textit{a priori}; instead, we compute it from $A$ and $B$.
+We will describe an algorithm to compute $\nnz(C)$, where $C = AB$, given $A$ and $B$ in CSR format.
+The same algorithm repeated again will allow us to fill in the entries of $J_C$ and $V_C$.
+
+\begin{algorithm}[H]
+   \caption{Compute $\nnz(C)$ where $C = AB$, fill in the $I_C$ array in CSR format.}
+   \begin{algorithmic}
+      \State Allocate array $I_C$ of length $\ell + 1$.
+      \State Allocate array $\textsf{loc\_to\_glob}$ of length $n$.
+      \State Allocate array $\textsf{glob\_to\_loc}$ of length $n$. Initialize all entries to $-1$.
+      \State $I_C[0] \gets 0$
+      \For {$i = 0, 1, \ldots, \ell - 1$}
+         \Comment{For each row of $A$}
+         \State $\textsf{nnz\_row} \gets 0$
+         \State $\textsf{begin}_k \gets I_A[i]$
+         \State $\textsf{end}_k \gets I_A[i+1]$
+         \For {$\textsf{idx}_k = \textsf{begin}_k, \textsf{begin}_k + 1, \ldots, \textsf{end}_k - 1$}
+            \Comment{For each nonzero in row $i$ of $A$}
+            \State $k \gets J_A[\textsf{idx}_k]$ \Comment{$(i,k)$ is nonzero in $A$}
+%
+            \State $\textsf{begin}_j \gets I_B[k]$
+            \State $\textsf{end}_j \gets I_B[k+1]$
+%
+            \For {$\textsf{idx}_j = \textsf{begin}_j, \textsf{begin}_j + 1, \ldots, \textsf{end}_k - 1$}
+               \Comment{For each nonzero in row $k$ of $B$}
+               \State $j \gets J_B[\textsf{idx}_j]$
+               \Comment{$(k,j)$ is nonzero in $B$}
+               \State This implies that $(i,j)$ is a nonzero entry in the structure of $C$. If this is the first time we're seeing this entry, count it as a new nonzero. Note: we may encounter the same $(i,j)$ multiple times, because $A_{ik}$ and $B_{kj}$ may both be nonzero for multiple $k$.
+               \If {$\textsf{glob\_to\_loc}[j] < 0$}
+                  \Comment {This is the first time we're seeing the nonzero $(i,j)$}
+                  \State $\textsf{glob\_to\_loc}[j] \gets \textsf{nnz\_row}$
+                  \State $\textsf{loc\_to\_glob}[\textsf{nnz\_row}] \gets j$
+                  \State $\textsf{nnz\_row} \gets \textsf{nnz\_row} + 1$
+               \EndIf
+            \EndFor
+         \EndFor
+         \State $I_C[i+1] \gets I_C[i] + \textsf{nnz\_row}$
+         \For {$c \gets 0, 1, \ldots, \textsf{nnz\_row} - 1$}
+            \State $\textsf{glob\_to\_loc}[\textsf{loc\_to\_glob}[c]] \gets -1$
+            \Comment Reset the $\textsf{glob\_to\_loc}$ array
+         \EndFor
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+After running the above algorithm, the array $I_C$ is set up, and $\nnz(C) = I_C[\ell]$.
+We can then run the algorithm (slightly modified) a second time to fill in the $J_C$ array.
+\begin{algorithm}[H]
+   \caption{Given $I_C$, fill in $J_C$.}
+   \begin{algorithmic}
+      \State Allocate arrays $J_C$ and $V_C$ of length $\nnz(C)$.
+      \State Reuse previously allocated array $\textsf{loc\_to\_glob}$ of length $n$.
+      \State Reuse previously allocated array $\textsf{glob\_to\_loc}$ of length $n$. All entries should be already set to $-1$.
+      \For {$i = 0, 1, \ldots, \ell - 1$}
+         \Comment{For each row of $A$}
+         \State $\textsf{nnz\_row} \gets 0$
+         \State $\textsf{begin}_k \gets I_A[i]$
+         \State $\textsf{end}_k \gets I_A[i+1]$
+         \For {$\textsf{idx}_k = \textsf{begin}_k, \textsf{begin}_k + 1, \ldots, \textsf{end}_k - 1$}
+            \Comment{For each nonzero in row $i$ of $A$}
+            \State $k \gets J_A[\textsf{idx}_k]$ \Comment{$(i,k)$ is nonzero in $A$}
+%
+            \State $\textsf{begin}_j \gets I_B[k]$
+            \State $\textsf{end}_j \gets I_B[k+1]$
+%
+            \For {$\textsf{idx}_j = \textsf{begin}_j, \textsf{begin}_j + 1, \ldots, \textsf{end}_k - 1$}
+               \Comment{For each nonzero in row $k$ of $B$}
+               \State $j \gets J_B[\textsf{idx}_j]$
+               \Comment{$(k,j)$ is nonzero in $B$}
+               \If {$\textsf{glob\_to\_loc}[j] < 0$}
+                  \Comment {This is the first time we're seeing the nonzero $(i,j)$}
+                  \State $\textsf{glob\_to\_loc}[j] \gets \textsf{nnz\_row}$
+                  \State {\color{blue} $J_C[I_C[i] + \textsf{nnz\_row}] \gets j$}
+                  \Comment {{\color{blue}Fill in $J_C$ array (new modification)}}
+                  \State {\color{blue} $V_C[I_C[i] + \textsf{nnz\_row}] \gets V_A[\mathsf{idx}_k] V_B[\mathsf{idx}_j] $}
+                  \Comment {{\color{blue}Set entry in $V_C$ array (new modification)}}
+                  \State $\textsf{nnz\_row} \gets \textsf{nnz\_row} + 1$
+               \Else
+                    \State $c \gets \textsf{glob\_to\_loc}[j]$
+                    \State {\color{blue} $V_C[I_C[i] + c] \gets V_C[I_C[i] + c] + V_A[\mathsf{idx}_k] V_B[\mathsf{idx}_j] $}
+               \Comment {{\color{blue}Accumulate in $V_C$ array (new modification)}}
+               \EndIf
+            \EndFor
+         \EndFor
+      \EndFor
+   \end{algorithmic}
+\end{algorithm}
+
+\end{document}

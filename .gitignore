@@ -3,3 +3,4 @@ build
 img
 lecture*.tex
 quadrature_1d.tex
+!lecture_6.tex
