@@ -10,3 +10,11 @@
    - Introduction to finite element method, 1D Poisson problem
 * [Lecture 3](lecture_notebooks/lecture_3.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_3.ipynb)
    - Introduction to 2D problems, Banach, Hilbert, and Sobolev spaces
+* [Lecture 4](lecture_notebooks/lecture_4.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_4.ipynb)
+   - Trace theorem, variational formulation (precise version), practical/algorithmic aspects
+* [Lecture 5](lecture_notebooks/lecture_5.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_5.ipynb)
+   - Riesz representation theorem, abstract formulation for elliptic problems, discretization and error estimates, unisolvence
+* [Lecture 6](lecture_notebooks/lecture_6.tex)
+   - Sparse matrices, algorithms, CSR format
+* [Lecture 7](lecture_notebooks/lecture_7.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_7.ipynb)
+   - Polynomial interpolation and approximation theory
