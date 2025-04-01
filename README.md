@@ -22,3 +22,5 @@
    - Duality argument, pure Neumann conditions
 * [Lecture 9](lecture_notebooks/lecture_9.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pazner/mth-651/blob/main/lecture_notebooks/lecture_9.ipynb)
    - Linear solvers, stationary methpods
+
+These training materials were developed as part of activities under RTG grant DMS-2136228.
